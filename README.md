@@ -9,6 +9,7 @@ A sign-up sheet for a company-wide potluck. It has:
 - **Write-ins.** People can add a dish that isn't on the list.
 - **Sign-up details.** Each sign-up has a name and department, plus optional specifics, servings, dietary tags and a **recipe, link or deal** that others can open.
 - **Editing your own sign-up.** People can edit or cancel their own sign-up from the same phone or computer. No accounts needed.
+- **A QR code** on the admin page that opens the sign-up sheet, with a download button and a printable flyer (`/flyer`) for the break room.
 - **An admin page at `/admin`.** It's password protected and shows a full roster with search and filters, what's still needed per shift, and a CSV download. From there you can also edit the event, add, remove or resize dishes, and remove any sign-up.
 
 The site runs on **Render** and stores sign-ups in **Supabase** (Postgres). It creates its own tables the first time it starts.
@@ -45,6 +46,8 @@ Create a new repository (it can be private) and upload everything in this folder
 4. Share the main link (without `/admin`) with everyone.
 
 ## Good to know
+
+- **QR code link.** The QR code points to `https://potluck-signup-8oyh.onrender.com/`. If the site's address ever changes, add a `PUBLIC_URL` environment variable in Render with the new address.
 
 - **Free plan sleep.** On Render's free plan, the site sleeps after 15 minutes without visitors. The first person after that waits about a minute for it to load. To avoid that, upgrade the service to a paid instance in Render. The data is safe either way, because it lives in Supabase.
 - **The sheet refreshes itself** every 10 seconds, so people see dishes fill up live.

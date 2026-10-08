@@ -41,7 +41,7 @@ async function api(method, url, body, headers = {}) {
 async function refresh() {
   try {
     const d = await api('GET', '/api/state');
-    S.event = d.event; S.claims = d.claims; S.isAdmin = !!d.admin; S.loaded = true; S.offline = false;
+    S.event = d.event; S.claims = d.claims; S.isAdmin = !!d.admin; S.url = d.url || location.origin + '/'; S.loaded = true; S.offline = false;
   } catch (e) { S.offline = true; S.loaded = true; }
   render();
 }
@@ -160,6 +160,12 @@ function renderAdmin() {
   const people = new Set(S.claims.map(c => c.name.toLowerCase() + '|' + normDept(c.dept).toLowerCase())).size;
   const deptSet = [...new Set(S.claims.map(c => normDept(c.dept) || 'No department'))].sort();
   let h = `<section class="hero"><div class="row between"><span class="eyebrow">Admin · ${esc(ev().name || 'Potluck')}</span><div class="row"><button data-act="go-sheet">← Sign-up sheet</button><button class="ghost" data-act="logout">Log out</button></div></div><h1>Who's bringing what</h1></section>`;
+  const url = S.url || location.origin + '/';
+  h += `<section class="panel share"><div class="qrbox"><img src="/qr.svg" alt="QR code that opens the potluck sign-up sheet" width="168" height="168"></div>
+    <div class="share-text"><span class="eyebrow">Share the sign-up sheet</span><h2>Scan to sign up</h2>
+      <p class="muted" style="margin:0">Post it in the break room or send the link in the group chat. It opens the sign-up sheet, not this admin page.</p>
+      <div class="share-url">${esc(url.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</div>
+      <div class="row"><button data-act="copy-link">Copy link</button><a class="btn" href="/qr.png?size=1200&download=1" download="potluck-signup-qr.png">Download QR</a><a class="btn primary" href="/flyer" target="_blank" rel="noopener">Print flyer</a></div></div></section>`;
   h += `<section class="panel"><div class="stats">
     <div class="stat"><span class="big">${S.claims.length}</span><span>dishes signed up</span></div>
     <div class="stat"><span class="big">${people}</span><span>people</span></div>
@@ -302,6 +308,7 @@ $('app').addEventListener('click', async e => {
     else if (act === 'recipe') openRecipe(id);
     else if (act === 'go-admin') go('admin');
     else if (act === 'go-sheet') go('sheet');
+    else if (act === 'copy-link') copy(S.url || location.origin + '/');
     else if (act === 'logout') { await api('POST', '/api/admin/logout'); S.isAdmin = false; render(); }
     else if (act === 'shift') { S.shift = b.dataset.s; S.dept = null; S.filter = null; store.set('potluck-shift', S.shift); render(); }
     else if (act === 'filter') { S.filter = S.filter === b.dataset.tag ? null : b.dataset.tag; render(); }

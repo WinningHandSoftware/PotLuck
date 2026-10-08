@@ -3,11 +3,13 @@ const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
 const { Pool } = require('pg');
+const QRCode = require('qrcode');
 const { SHIFTS, CATS, TAGS, defaultEvent } = require('./public/shared');
 
 const PORT = process.env.PORT || 3000;
 const DATABASE_URL = process.env.DATABASE_URL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+const PUBLIC_URL = (process.env.PUBLIC_URL || 'https://potluck-signup-8oyh.onrender.com/').trim();
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.createHash('sha256').update('potluck:' + ADMIN_PASSWORD).digest('hex');
 
 if (!DATABASE_URL) { console.error('Missing DATABASE_URL. Add your Supabase connection string.'); process.exit(1); }
@@ -150,7 +152,7 @@ app.get('/api/state', async (req, res, next) => {
   try {
     const [event, claims] = await Promise.all([getEvent(), pool.query('SELECT * FROM potluck_claims ORDER BY created_at')]);
     res.set('Cache-Control', 'no-store');
-    res.json({ event, claims: claims.rows.map(publicClaim), admin: isAdmin(req) });
+    res.json({ event, claims: claims.rows.map(publicClaim), admin: isAdmin(req), url: signupUrl() });
   } catch (e) { next(e); }
 });
 
@@ -262,6 +264,72 @@ app.get('/api/admin/export.csv', requireAdmin, async (req, res, next) => {
     rows.forEach(r => lines.push([r.name, r.dept, shiftLabel(r.shift), r.dish, catLabel(r.category), r.detail, r.serves, (r.tags || []).join('; '), r.recipe, r.item_id && itemIds.has(r.item_id) ? '' : 'Yes', new Date(r.created_at).toLocaleString('en-US', { timeZone: 'America/Chicago' })].map(q).join(',')));
     res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="potluck-signups.csv"', 'Cache-Control': 'no-store' });
     res.send('﻿' + lines.join('\r\n'));
+  } catch (e) { next(e); }
+});
+
+/* ---------- QR code + flyer ---------- */
+const signupUrl = () => PUBLIC_URL.endsWith('/') ? PUBLIC_URL : PUBLIC_URL + '/';
+const htmlEsc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const qrOpts = { errorCorrectionLevel: 'M', margin: 2, color: { dark: '#1D2A20', light: '#FFFFFF' } };
+
+app.get('/qr.svg', async (req, res, next) => {
+  try {
+    const svg = await QRCode.toString(signupUrl(), { ...qrOpts, type: 'svg' });
+    res.set({ 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=3600' }).send(svg);
+  } catch (e) { next(e); }
+});
+app.get('/qr.png', async (req, res, next) => {
+  try {
+    const width = Math.max(200, Math.min(2000, parseInt(req.query.size, 10) || 1024));
+    const png = await QRCode.toBuffer(signupUrl(), { ...qrOpts, type: 'png', width });
+    const headers = { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600' };
+    if (req.query.download) headers['Content-Disposition'] = 'attachment; filename="potluck-signup-qr.png"';
+    res.set(headers).send(png);
+  } catch (e) { next(e); }
+});
+app.get('/flyer', async (req, res, next) => {
+  try {
+    const ev = await getEvent();
+    const svg = await QRCode.toString(signupUrl(), { ...qrOpts, type: 'svg' });
+    let when = '';
+    if (ev.date) { const [y, m, d] = ev.date.split('-').map(Number); when = new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }); }
+    res.set('Cache-Control', 'no-store').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${htmlEsc(ev.name)} – flyer</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Figtree:wght@500;700&family=DM+Mono:wght@500&display=swap">
+<style>
+@page{size:letter;margin:0.5in}
+*{box-sizing:border-box}
+body{margin:0;background:#fff;color:#1D2A20;font-family:Figtree,system-ui,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.page{max-width:7.5in;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:18px}
+.cloth{width:100%;height:34px;background-image:linear-gradient(90deg,rgba(47,107,79,.55) 50%,transparent 50%),linear-gradient(rgba(47,107,79,.55) 50%,transparent 50%);background-size:22px 22px;border-radius:6px}
+.eyebrow{font:500 14px/1 "DM Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:#5F6E62}
+h1{font:400 clamp(34px,7vw,56px)/1.02 "Bagel Fat One","Arial Rounded MT Bold",sans-serif;margin:0;text-wrap:balance}
+.facts{font-size:20px;font-weight:700}
+.facts span{display:block;font-weight:500;color:#5F6E62;font-size:17px}
+.qr{width:min(4.2in,80vw);border:3px solid #1D2A20;border-radius:18px;padding:10px;background:#fff}
+.qr svg{display:block;width:100%;height:auto}
+.scan{font:400 28px/1.1 "Bagel Fat One","Arial Rounded MT Bold",sans-serif}
+.how{font-size:17px;max-width:5.6in;line-height:1.45}
+.shifts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.shifts b{border:2px solid currentColor;border-radius:999px;padding:6px 14px;font-size:15px}
+.url{font:500 15px/1.3 "DM Mono",monospace;color:#2F6B4F;word-break:break-all}
+.bar{display:flex;gap:10px;justify-content:center;margin-top:8px}
+.bar button,.bar a{font:700 15px Figtree,sans-serif;padding:11px 18px;border-radius:999px;border:2px solid #2F6B4F;background:#2F6B4F;color:#fff;cursor:pointer;text-decoration:none}
+.bar a{background:#fff;color:#2F6B4F}
+@media print{.bar{display:none}.page{padding:0}}
+</style></head><body><div class="page">
+<div class="cloth"></div>
+<span class="eyebrow">Thanksgiving · all departments · all shifts</span>
+<h1>${htmlEsc(ev.name || 'Team Thanksgiving Potluck')}</h1>
+${when || ev.place ? `<div class="facts">${htmlEsc(when)}${ev.place ? `<span>${htmlEsc(ev.place)}</span>` : ''}</div>` : ''}
+<div class="qr" role="img" aria-label="QR code for the potluck sign-up sheet">${svg}</div>
+<div class="scan">Scan to sign up</div>
+<p class="how" style="margin:0">Pick your shift, claim a dish that still has open spots, or add your own. Share your recipe or a deal you found while you're at it.</p>
+<div class="shifts"><b style="color:#B97B1E">Morning</b><b style="color:#C0583A">Swing</b><b style="color:#3E4C8A">Graveyard</b></div>
+<div class="url">${htmlEsc(signupUrl().replace(/^https?:\/\//, '').replace(/\/$/, ''))}</div>
+${ev.host ? `<div class="eyebrow">Questions? Ask ${htmlEsc(ev.host)}</div>` : ''}
+<div class="bar"><button onclick="window.print()">Print flyer</button><a href="/admin">Back to admin</a></div>
+</div></body></html>`);
   } catch (e) { next(e); }
 });
 
