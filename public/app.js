@@ -97,7 +97,6 @@ function renderSheet() {
   if (facts.length) h += `<div class="facts">${facts.join('')}</div>`;
   if (E.notes) h += `<div class="note">${esc(E.notes)}</div>`;
   h += `<p class="muted" style="margin:0">Each shift has its own spread. Pick your shift, then tap <b>I'll bring one</b> on a dish that still has open spots.</p>`;
-  if (canManage()) h += `<div class="row"><button data-act="edit-event">Edit date, place & departments</button></div>`;
   h += `</section>`;
   if (S.offline) h += `<div class="offline">Can't reach the server right now. The sheet will update when the connection comes back.</div>`;
 
@@ -160,6 +159,16 @@ function renderAdmin() {
   const people = new Set(S.claims.map(c => c.name.toLowerCase() + '|' + normDept(c.dept).toLowerCase())).size;
   const deptSet = [...new Set(S.claims.map(c => normDept(c.dept) || 'No department'))].sort();
   let h = `<section class="hero"><div class="row between"><span class="eyebrow">Admin · ${esc(ev().name || 'Potluck')}</span><div class="row"><button data-act="go-sheet">← Sign-up sheet</button><button class="ghost" data-act="logout">Log out</button></div></div><h1>Who's bringing what</h1></section>`;
+  const E = ev(); const depts = E.departments || [];
+  h += `<section class="panel details"><div class="row between"><span class="eyebrow">Event details</span><button class="primary" data-act="edit-event">Edit date, place & departments</button></div>
+    <dl class="dl">
+      <div><dt>Event</dt><dd>${esc(E.name || '–')}</dd></div>
+      <div><dt>Date</dt><dd>${E.date ? esc(fmtDate(E.date)) : '<span class="muted">Not set yet</span>'}</dd></div>
+      <div><dt>Where</dt><dd>${E.place ? esc(E.place) : '<span class="muted">Not set yet</span>'}</dd></div>
+      <div><dt>Organizer</dt><dd>${E.host ? esc(E.host) : '<span class="muted">Not set yet</span>'}</dd></div>
+      <div class="wide"><dt>Departments (${depts.length})</dt><dd>${depts.length ? depts.map(esc).join(', ') : '<span class="muted">None yet</span>'}</dd></div>
+      ${E.notes ? `<div class="wide"><dt>Note for everyone</dt><dd>${esc(E.notes)}</dd></div>` : ''}
+    </dl></section>`;
   const url = S.url || location.origin + '/';
   h += `<section class="panel share"><div class="qrbox"><img src="/qr.svg" alt="QR code that opens the potluck sign-up sheet" width="168" height="168"></div>
     <div class="share-text"><span class="eyebrow">Share the sign-up sheet</span><h2>Scan to sign up</h2>
