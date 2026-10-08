@@ -9,6 +9,7 @@ A sign-up sheet for a company-wide potluck. It has:
 - **Write-ins.** People can add a dish that isn't on the list.
 - **Sign-up details.** Each sign-up has a name and department, plus optional specifics, servings, dietary tags and a **recipe, link or deal** that others can open.
 - **Editing your own sign-up.** People can edit or cancel their own sign-up from the same phone or computer. No accounts needed.
+- **A sign-in page** in front of the whole site. Everyone uses one shared username and password (set in Render), so only your team can see the sheet.
 - **A QR code** on the admin page that opens the sign-up sheet, with a download button and a printable flyer (`/flyer`) for the break room.
 - **An admin page at `/admin`.** It's password protected and shows a full roster with search and filters, what's still needed per shift, and a CSV download. From there you can also edit the event, add, remove or resize dishes, and remove any sign-up.
 
@@ -44,6 +45,17 @@ Create a new repository (it can be private) and upload everything in this folder
 2. Click **← Sign-up sheet**, then **Edit date, place & departments**. Fix the department list to match your property.
 3. Adjust any dish counts with **−** and **+**, or add dishes.
 4. Share the main link (without `/admin`) with everyone.
+
+## Turn on the team login
+
+In Render, open the service, go to **Environment**, and add:
+
+- `SITE_USERNAME`: `Windcreek`
+- `SITE_PASSWORD`: the shared password
+
+Save, and Render redeploys. After that, anyone who opens the link or scans the QR code sees the sign-in page first. The username isn't case-sensitive, but the password is. People stay signed in on their phone for 90 days. Changing `SITE_PASSWORD` signs everyone out. The admin page still asks for `ADMIN_PASSWORD` on top of this.
+
+The password is kept in Render rather than in this code because this repository is public.
 
 ## Good to know
 

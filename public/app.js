@@ -35,6 +35,7 @@ async function copy(text) { try { await navigator.clipboard.writeText(text); toa
 async function api(method, url, body, headers = {}) {
   const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', ...headers }, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin' });
   let data = {}; try { data = await res.json(); } catch (e) {}
+  if (res.status === 401 && data.login) { location.href = '/login?next=' + encodeURIComponent(location.pathname); throw new Error('Sign in first.'); }
   if (!res.ok) { const err = new Error(data.error || 'Something went wrong. Try again.'); err.status = res.status; throw err; }
   return data;
 }
@@ -129,7 +130,7 @@ function renderSheet() {
       : `<li><button class="ghost" data-act="host-add" data-cat="${c.id}">Organizer: add a dish to the ${c.label.toLowerCase()} list</button></li>`;
     h += `</ul></section>`;
   });
-  h += `<footer class="foot"><span class="muted" style="font-size:.88rem">Updates every few seconds as people sign up.</span><button data-act="copy-shift">Copy ${sh.label} summary</button></footer>`;
+  h += `<footer class="foot"><span class="muted" style="font-size:.88rem">Updates every few seconds as people sign up. <a href="/logout" style="color:inherit">Sign out</a></span><button data-act="copy-shift">Copy ${sh.label} summary</button></footer>`;
   return h;
 }
 

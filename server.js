@@ -10,6 +10,8 @@ const PORT = process.env.PORT || 3000;
 const DATABASE_URL = process.env.DATABASE_URL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const PUBLIC_URL = (process.env.PUBLIC_URL || 'https://potluck-signup-8oyh.onrender.com/').trim();
+const SITE_USERNAME = (process.env.SITE_USERNAME || 'Windcreek').trim();
+const SITE_PASSWORD = process.env.SITE_PASSWORD || '';
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.createHash('sha256').update('potluck:' + ADMIN_PASSWORD).digest('hex');
 
 if (!DATABASE_URL) { console.error('Missing DATABASE_URL. Add your Supabase connection string.'); process.exit(1); }
@@ -76,6 +78,15 @@ function isAdmin(req) {
   return v.startsWith('admin:') && exp > Date.now();
 }
 function requireAdmin(req, res, next) { if (isAdmin(req)) return next(); res.status(401).json({ error: 'Log in as the organizer first.' }); }
+function hasSiteAccess(req) {
+  if (!SITE_PASSWORD || isAdmin(req)) return true;
+  const v = verify(cookies(req).potluck_site);
+  if (!v || !v.startsWith('site:')) return false;
+  const [, exp, ver] = v.split(':');
+  // ver ties the cookie to the current password, so changing SITE_PASSWORD signs everyone out
+  return Number(exp) > Date.now() && ver === sha(SITE_PASSWORD).slice(0, 12);
+}
+const safeNext = n => (typeof n === 'string' && /^\/(?!\/)[^\s\\]*$/.test(n) ? n : '/');
 
 // Tiny in-memory rate limiter (per IP, per bucket).
 const hits = new Map();
@@ -147,6 +158,72 @@ app.use((req, res, next) => {
 });
 
 app.get('/healthz', (req, res) => res.send('ok'));
+
+/* ---------- site login (shared username + password for everyone) ---------- */
+const loginPage = (next, error) => `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="light dark">
+<title>Sign in · Potluck Sign-Up</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap">
+<style>
+:root{--bg:#F4F6F0;--surface:#fff;--fg:#1D2A20;--muted:#5F6E62;--line:#DCE3D9;--accent:#2F6B4F;--accent-ink:#fff;--mustard:#D9952B;--danger:#B3402F}
+@media (prefers-color-scheme:dark){:root{--bg:#121813;--surface:#1A221C;--fg:#E5ECE3;--muted:#9AAA9C;--line:#2B362D;--accent:#7CC39A;--accent-ink:#0F1A13;--mustard:#E8B04F;--danger:#E57C6B}}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--fg);font:16px/1.5 Figtree,system-ui,-apple-system,"Segoe UI",sans-serif}
+.cloth{height:26px;background-image:linear-gradient(90deg,color-mix(in srgb,var(--accent) 45%,transparent) 50%,transparent 50%),linear-gradient(color-mix(in srgb,var(--accent) 45%,transparent) 50%,transparent 50%);background-size:18px 18px}
+main{max-width:400px;margin:0 auto;padding:40px 16px calc(40px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:18px}
+.eyebrow{font:500 .72rem/1 "DM Mono",ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+h1{font:400 clamp(2rem,9vw,2.6rem)/1.05 "Bagel Fat One","Arial Rounded MT Bold",system-ui,sans-serif;margin:0}
+p{margin:0;color:var(--muted)}
+form{display:flex;flex-direction:column;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px}
+label{font-weight:600;font-size:.92rem;display:flex;flex-direction:column;gap:6px}
+input{font:inherit;color:var(--fg);background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:12px;width:100%}
+input:focus-visible,button:focus-visible{outline:2.5px solid var(--mustard);outline-offset:2px}
+button{font:700 1rem/1 Figtree,system-ui,sans-serif;border-radius:999px;padding:14px 18px;border:none;background:var(--accent);color:var(--accent-ink);cursor:pointer}
+.err{color:var(--danger);font-size:.92rem;font-weight:600}
+.shifts{display:flex;gap:8px;flex-wrap:wrap}
+.shifts span{font:500 .75rem/1 "DM Mono",monospace;padding:5px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+</style></head><body><div class="cloth" aria-hidden="true"></div><main>
+<span class="eyebrow">Team Thanksgiving Potluck</span>
+<h1>Sign in to sign up</h1>
+<p>Use the team username and password to see who's bringing what and claim a dish.</p>
+<form method="post" action="/login">
+<input type="hidden" name="next" value="${String(next).replace(/"/g, '&quot;')}">
+<label>Username<input name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required autofocus></label>
+<label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+${error ? `<div class="err" role="alert">${error}</div>` : ''}
+<button type="submit">Sign in</button>
+</form>
+<div class="shifts" aria-hidden="true"><span>Morning</span><span>Swing</span><span>Graveyard</span></div>
+</main></body></html>`;
+
+app.get('/login', (req, res) => {
+  const next = safeNext(req.query.next);
+  if (hasSiteAccess(req)) return res.redirect(next);
+  res.set('Cache-Control', 'no-store').send(loginPage(next, ''));
+});
+app.post('/login', express.urlencoded({ extended: false, limit: '4kb' }), limit('site-login', 10, 600000), (req, res) => {
+  const b = req.body || {};
+  const next = safeNext(b.next);
+  const userOk = String(b.username || '').trim().toLowerCase() === SITE_USERNAME.toLowerCase();
+  const passOk = SITE_PASSWORD && safeEq(sha(String(b.password || '')), sha(SITE_PASSWORD));
+  if (!userOk || !passOk) return res.status(401).set('Cache-Control', 'no-store').send(loginPage(next, 'That username or password is not right. Ask your supervisor or the organizer for the login.'));
+  const days = 90, exp = Date.now() + days * 864e5;
+  const secure = req.secure ? '; Secure' : '';
+  res.set('Set-Cookie', `potluck_site=${encodeURIComponent(sign('site:' + exp + ':' + sha(SITE_PASSWORD).slice(0, 12)))}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${days * 86400}${secure}`);
+  res.redirect(303, next);
+});
+app.get('/logout', (req, res) => {
+  res.set('Set-Cookie', ['potluck_site=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0', 'potluck_admin=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0']);
+  res.redirect('/login');
+});
+
+// Everything below needs the shared login (admins are let through too).
+app.use((req, res, next) => {
+  if (hasSiteAccess(req)) return next();
+  if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Sign in first.', login: true });
+  if (req.method === 'GET' && (req.accepts(['html', 'json', 'image']) === 'html')) return res.redirect('/login?next=' + encodeURIComponent(req.originalUrl));
+  res.status(401).send('Sign in first.');
+});
 
 app.get('/api/state', async (req, res, next) => {
   try {
