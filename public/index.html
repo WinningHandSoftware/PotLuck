@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Potluck Sign-Up</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='36' r='22' fill='%232F6B4F'/%3E%3Crect x='14' y='18' width='36' height='8' rx='4' fill='%23D9952B'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: gingham band; shift tabs pick which shift's spread you're looking at; dish cards fill slot dots and cross off. Admin view swaps in a sortable roster table. */
+:root{
+  --bg:#F4F6F0; --surface:#FFFFFF; --fg:#1D2A20; --muted:#5F6E62; --line:#DCE3D9;
+  --accent:#2F6B4F; --accent-ink:#FFFFFF; --mustard:#D9952B; --mustard-soft:#FBEFD9;
+  --danger:#B3402F; --open:#EEF2EA; --taken:#F7F8F4;
+  --sh-morning:#D9952B; --sh-swing:#C0583A; --sh-grave:#3E4C8A;
+  --f-display:"Bagel Fat One","Arial Rounded MT Bold",system-ui,sans-serif;
+  --f-body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"DM Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121813; --surface:#1A221C; --fg:#E5ECE3; --muted:#9AAA9C; --line:#2B362D;
+  --accent:#7CC39A; --accent-ink:#0F1A13; --mustard:#E8B04F; --mustard-soft:#2E2617;
+  --danger:#E57C6B; --open:#18201A; --taken:#161D17;
+  --sh-morning:#E8B04F; --sh-swing:#E98667; --sh-grave:#9AA8F0; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#121813; --surface:#1A221C; --fg:#E5ECE3; --muted:#9AAA9C; --line:#2B362D;
+  --accent:#7CC39A; --accent-ink:#0F1A13; --mustard:#E8B04F; --mustard-soft:#2E2617;
+  --danger:#E57C6B; --open:#18201A; --taken:#161D17;
+  --sh-morning:#E8B04F; --sh-swing:#E98667; --sh-grave:#9AA8F0; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body);padding-inline:16px;padding-block:0 48px}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+.wrap.wide{max-width:1080px}
+.cloth{height:26px;margin-inline:-16px;background-color:var(--bg);
+  background-image:linear-gradient(90deg,color-mix(in srgb,var(--accent) 45%,transparent) 50%,transparent 50%),
+    linear-gradient(color-mix(in srgb,var(--accent) 45%,transparent) 50%,transparent 50%);
+  background-size:18px 18px}
+h1,h2{font-family:var(--f-display);font-weight:400;margin:0;text-wrap:balance;line-height:1.05}
+h1{font-size:clamp(2rem,8vw,2.8rem)}
+h2{font-size:1.35rem}
+.eyebrow{font:500 .72rem/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.hero{display:flex;flex-direction:column;gap:12px;padding-top:4px}
+.facts{display:flex;flex-wrap:wrap;gap:6px 18px;color:var(--muted);font-size:.95rem}
+.facts b{color:var(--fg);font-weight:600}
+.note{background:var(--mustard-soft);border-radius:10px;padding:10px 14px;font-size:.93rem}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.between{justify-content:space-between}
+button{font:600 .92rem/1 var(--f-body);border-radius:999px;padding:10px 16px;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:disabled{opacity:.6;cursor:default}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2.5px solid var(--mustard);outline-offset:2px}
+.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.ghost{background:transparent;border-color:transparent;color:var(--muted);padding:6px 8px;font-size:.85rem}
+.ghost:hover{color:var(--fg);border-color:transparent}
+.danger{color:var(--danger)}
+
+/* Shift tabs */
+.shifts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.shift{display:flex;flex-direction:column;align-items:flex-start;gap:4px;border-radius:14px;padding:12px 14px;text-align:left;border:1.5px solid var(--line);background:var(--surface)}
+.shift .sname{font:400 1.15rem/1 var(--f-display);color:var(--sc)}
+.shift .scount{font:500 .76rem/1.2 var(--f-mono);color:var(--muted)}
+.shift[aria-selected="true"]{border-color:var(--sc);box-shadow:inset 0 0 0 1.5px var(--sc);background:color-mix(in srgb,var(--sc) 8%,var(--surface))}
+.sh-morning{--sc:var(--sh-morning)} .sh-swing{--sc:var(--sh-swing)} .sh-graveyard{--sc:var(--sh-grave)}
+.spill{display:inline-block;font:500 .72rem/1 var(--f-mono);padding:4px 8px;border-radius:999px;color:var(--sc);border:1px solid color-mix(in srgb,var(--sc) 50%,transparent);white-space:nowrap}
+
+.panel{display:flex;flex-direction:column;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px}
+.stat{display:flex;flex-direction:column;gap:3px;min-width:0}
+.big{font:400 1.7rem/1 var(--f-display);font-variant-numeric:tabular-nums}
+.stat>span:last-child{color:var(--muted);font-size:.82rem}
+.bar{height:10px;border-radius:999px;background:var(--open);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .4s}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:500 .78rem/1 var(--f-mono);padding:6px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:transparent}
+.chip.need{border-color:var(--mustard);color:var(--fg);background:var(--mustard-soft)}
+.chip.done{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
+button.chip{cursor:pointer;padding:7px 10px}
+button.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+
+.depts{display:flex;flex-direction:column;gap:7px;list-style:none;margin:0;padding:0}
+.dept{display:grid;grid-template-columns:minmax(0,10rem) 1fr 2.2rem;gap:10px;align-items:center;width:100%;background:transparent;border:none;padding:3px 0;text-align:left;font:500 .9rem/1.2 var(--f-body)}
+.dept[aria-pressed="true"] .dname{color:var(--accent);font-weight:700}
+.dname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dbar{height:8px;border-radius:999px;background:var(--open);overflow:hidden}
+.dbar i{display:block;height:100%;background:var(--mustard);border-radius:999px}
+.dept[aria-pressed="true"] .dbar i{background:var(--accent)}
+.dnum{font:500 .85rem/1 var(--f-mono);text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+
+.cat{display:flex;flex-direction:column;gap:8px}
+.cat-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;border-bottom:2px solid var(--fg);padding-bottom:6px}
+.count{font:500 .85rem/1 var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.count.full{color:var(--accent)}
+.list{display:flex;flex-direction:column;gap:7px;list-style:none;margin:0;padding:0}
+.item{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;transition:opacity .2s}
+.item.full{background:var(--taken)}
+.item.dim{opacity:.35}
+.item-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.item-label{font-weight:700;font-size:1rem;min-width:0;overflow-wrap:anywhere;display:flex;align-items:center;gap:8px}
+.item.full .item-label .txt{text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:var(--accent);color:var(--muted)}
+.item.write .item-label .txt{text-decoration:none;color:var(--fg)}
+.check{flex:none;width:20px;height:20px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:.72rem;font-weight:700}
+.slots{display:flex;gap:4px;align-items:center;flex:none}
+.slot{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--line)}
+.slot.on{background:var(--accent);border-color:var(--accent)}
+.slotnum{font:500 .8rem/1 var(--f-mono);color:var(--muted);margin-left:4px;font-variant-numeric:tabular-nums}
+.claims{display:flex;flex-direction:column;gap:4px;list-style:none;margin:0;padding:0}
+.claim{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:.9rem}
+.claim b{font-weight:600}
+.dtag{font:500 .72rem/1 var(--f-mono);padding:3px 7px;border-radius:999px;background:var(--mustard-soft);color:var(--fg)}
+.detail{color:var(--muted)}
+.tag{font:500 .7rem/1 var(--f-mono);padding:3px 6px;border-radius:6px;background:var(--open)}
+.tag.warn{background:var(--mustard-soft)}
+.cacts{margin-left:auto;display:flex;gap:2px;align-items:center;flex-wrap:wrap}
+.item-bottom{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.bring{padding:8px 14px;font-size:.88rem}
+.host-q{display:flex;align-items:center;gap:2px}
+.host-q button{padding:5px 10px;font-size:.9rem}
+.add-own{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1.5px dashed var(--line);background:transparent;border-radius:12px;padding:12px 14px;color:var(--muted);font-weight:500}
+.add-own:hover{border-color:var(--accent);color:var(--fg)}
+.add-own .plus{font:600 1.1rem/1 var(--f-body);color:var(--accent)}
+.host-add{display:flex;gap:6px;flex-wrap:wrap}
+.host-add input{flex:1 1 12rem;min-width:0}
+.host-add input[type=number]{flex:0 0 5rem}
+
+/* Admin */
+.adminbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:10px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--line)}
+.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px}
+.filters input,.filters select{padding:9px 11px;font-size:.9rem}
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:820px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:500 .72rem/1.2 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--surface);position:sticky;top:0}
+th button{all:unset;cursor:pointer;display:inline-flex;gap:4px;align-items:center}
+th button:focus-visible{outline:2px solid var(--mustard)}
+tbody tr:hover{background:var(--taken)}
+tbody tr:last-child td{border-bottom:none}
+td.num{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+td .sub{color:var(--muted);font-size:.82rem}
+.gaps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.gap{display:flex;flex-direction:column;gap:6px;min-width:0}
+.gap h3{margin:0;font:400 1rem/1 var(--f-display);color:var(--sc)}
+.gap ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:3px;font-size:.88rem}
+.gap li{display:flex;justify-content:space-between;gap:8px}
+.gap li span:last-child{font-family:var(--f-mono);color:var(--muted);font-size:.8rem}
+
+.empty{background:var(--surface);border:1.5px dashed var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:8px}
+.muted{color:var(--muted)}
+.help{color:var(--muted);font-size:.82rem;margin:0}
+.foot{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding-top:16px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;font-size:.9rem;z-index:50;max-width:calc(100vw - 32px)}
+
+dialog{border:none;border-radius:18px;padding:0;width:min(520px,calc(100vw - 24px));max-height:calc(100dvh - 32px);background:var(--surface);color:var(--fg)}
+dialog::backdrop{background:rgba(10,16,12,.5)}
+.sheet{display:flex;flex-direction:column;gap:14px;padding:20px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label,.legend{font-weight:600;font-size:.9rem}
+.opt{font-weight:400;color:var(--muted)}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+textarea{min-height:70px;resize:vertical}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.seg label{display:flex;justify-content:center;align-items:center;border:1.5px solid var(--line);border-radius:10px;padding:9px 6px;font-weight:600;font-size:.88rem;cursor:pointer;color:var(--sc)}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label:has(input:checked){border-color:var(--sc);background:color-mix(in srgb,var(--sc) 12%,transparent)}
+.seg label:has(input:focus-visible){outline:2.5px solid var(--mustard);outline-offset:2px}
+.checks{display:flex;flex-wrap:wrap;gap:6px}
+.checks label{display:flex;gap:6px;align-items:center;border:1.5px solid var(--line);border-radius:999px;padding:7px 11px;font-size:.85rem;cursor:pointer}
+.checks input{width:auto;margin:0;accent-color:var(--accent)}
+.checks label:has(input:checked){border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.fixed-dish{font:400 1.4rem/1.1 var(--f-display)}
+.err{color:var(--danger);font-size:.88rem;margin:0}
+.msgbox{background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:12px;font-family:var(--f-mono);font-size:.85rem;white-space:pre-wrap;user-select:all;max-height:50vh;overflow:auto}
+@media (max-width:720px){.filters{grid-template-columns:1fr 1fr}.filters .search{grid-column:1/-1}.gaps{grid-template-columns:1fr}}
+@media (max-width:420px){.two{grid-template-columns:1fr}.dept{grid-template-columns:minmax(0,6.5rem) 1fr 2rem}.shift{padding:10px}.shift .sname{font-size:1rem}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.recipe-body{background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:14px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:55vh;overflow:auto;font-size:.95rem;line-height:1.55}
+.recipe-body a{color:var(--accent);font-weight:600}
+.rbtn{font:600 .74rem/1 var(--f-mono);padding:5px 9px;border-radius:999px;border:1.5px solid var(--mustard);background:var(--mustard-soft);color:var(--fg);cursor:pointer}
+.rbtn:hover{border-color:var(--accent)}
+.login{display:flex;flex-direction:column;gap:12px;max-width:360px}
+.login .row button{flex:none}
+.offline{background:var(--mustard-soft);border-radius:10px;padding:10px 14px;font-size:.9rem}
+
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+img{max-width:100%}
+</style>
+</head>
+<body>
+<div class="cloth" aria-hidden="true"></div>
+<main class="wrap" id="app"></main>
+<datalist id="deptList"></datalist>
+
+<dialog id="claimDlg" aria-labelledby="claimTitle">
+  <form class="sheet" id="claimForm" novalidate>
+    <span class="eyebrow" id="claimEyebrow">I'll bring</span>
+    <div id="fixedWrap"><h2 class="fixed-dish" id="claimTitle">Dish</h2></div>
+    <div class="field" id="dishWrap"><label for="c-dish">What are you bringing?</label><input id="c-dish" maxlength="60" placeholder="e.g. Jollof rice"></div>
+    <div class="field"><span class="legend">Your shift</span><div class="seg" id="c-shift"></div></div>
+    <div class="two">
+      <div class="field"><label for="c-name">Your name</label><input id="c-name" autocomplete="name" maxlength="40" placeholder="e.g. Rita M."></div>
+      <div class="field"><label for="c-dept">Department</label><input id="c-dept" list="deptList" maxlength="40" placeholder="e.g. Table Games"></div>
+    </div>
+    <div class="field"><label for="c-detail">Any specifics? <span class="opt">(optional)</span></label><input id="c-detail" maxlength="60" placeholder="e.g. Grandma's recipe, extra cheesy"></div>
+    <div class="field"><label for="c-recipe">Recipe, link or deal <span class="opt">(optional)</span></label><textarea id="c-recipe" maxlength="2000" rows="3" placeholder="Share how you make it, paste a recipe link, or a deal you found (e.g. Jewel has 2-liters 3 for $5)"></textarea></div>
+    <div class="two">
+      <div class="field" id="catWrap"><label for="c-cat">Category</label><select id="c-cat"></select></div>
+      <div class="field"><label for="c-serves">Serves about <span class="opt">(optional)</span></label><input id="c-serves" type="number" min="1" max="500" inputmode="numeric" placeholder="12"></div>
+    </div>
+    <div class="field"><span class="legend">Good to know <span class="opt">(optional)</span></span><div class="checks" id="c-tags"></div></div>
+    <p class="err" id="c-err" hidden></p>
+    <div class="row" style="justify-content:flex-end">
+      <button type="button" id="c-cancel">Cancel</button>
+      <button type="submit" class="primary" id="c-submit">Count me in</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="eventDlg" aria-labelledby="eventTitle">
+  <form class="sheet" id="eventForm" novalidate>
+    <h2 id="eventTitle">Potluck details</h2>
+    <div class="field"><label for="e-name">Event name</label><input id="e-name" maxlength="60" placeholder="Team Thanksgiving Potluck"></div>
+    <div class="field"><label for="e-date">Date</label><input id="e-date" type="date"></div>
+    <div class="field"><label for="e-place">Where</label><input id="e-place" maxlength="80" placeholder="e.g. Team member dining room"></div>
+    <div class="field"><label for="e-host">Organizer</label><input id="e-host" maxlength="40" placeholder="Your name"></div>
+    <div class="field"><label for="e-depts">Departments</label><textarea id="e-depts"></textarea><p class="help">Separate with commas. People pick from these when they sign up, and can type a new one.</p></div>
+    <div class="field"><label for="e-notes">Note for everyone</label><textarea id="e-notes" maxlength="300" placeholder="Drop food off in the team member dining room at the start of your shift. Label your dish with your name."></textarea></div>
+    <p class="err" id="e-err" hidden></p>
+    <div class="row" style="justify-content:flex-end">
+      <button type="button" id="e-cancel">Cancel</button>
+      <button type="submit" class="primary">Save details</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="recipeDlg" aria-labelledby="recipeTitle">
+  <div class="sheet">
+    <span class="eyebrow" id="recipeWho">Recipe</span>
+    <h2 class="fixed-dish" id="recipeTitle">Dish</h2>
+    <div class="recipe-body" id="recipeBody"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button type="button" id="r-copy">Copy</button>
+      <button type="button" class="primary" id="r-close">Close</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="sendDlg" aria-labelledby="sendTitle">
+  <div class="sheet">
+    <h2 id="sendTitle">Send this to the organizer</h2>
+    <p class="muted" style="margin:0" id="sendHelp">You can view this sheet but can't add to it. Copy this message and send it to the organizer so they can put you down.</p>
+    <div class="msgbox" id="sendMsg"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button type="button" id="s-close">Close</button>
+      <button type="button" class="primary" id="s-copy">Copy</button>
+    </div>
+  </div>
+</dialog>
+<script src="/shared.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
