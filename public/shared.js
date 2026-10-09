@@ -1,8 +1,8 @@
 // Shared by the browser (window.POTLUCK) and the server (require('./public/shared')).
 (function (root) {
+  // Night shift only for now. To bring the other shifts back, add
+  // { id: 'morning', label: 'Morning' } and { id: 'swing', label: 'Swing' } here.
   const SHIFTS = [
-    { id: 'morning', label: 'Morning' },
-    { id: 'swing', label: 'Swing' },
     { id: 'graveyard', label: 'Graveyard' }
   ];
   const CATS = [

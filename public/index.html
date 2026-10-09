@@ -128,7 +128,8 @@ button.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink
 
 /* Admin */
 .adminbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:10px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--line)}
-.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px}
+.filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}
+.filters:has(#a-shift){grid-template-columns:2fr 1fr 1fr 1fr}
 .filters input,.filters select{padding:9px 11px;font-size:.9rem}
 .tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}
 table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:820px}

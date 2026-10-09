@@ -21,6 +21,7 @@ const canManage = () => S.isAdmin;
 const mine = c => !!tokens()[c.id];
 const ev = () => S.event || defaultEvent();
 const shiftOf = id => SHIFTS.find(s => s.id === id);
+const MULTI = SHIFTS.length > 1;
 const catOf = id => CATS.find(c => c.id === id) || CATS[1];
 const normDept = d => (d || '').trim();
 const spill = id => { const s = shiftOf(id); return s ? `<span class="spill sh-${s.id}">${s.label}</span>` : '<span class="muted">–</span>'; };
@@ -93,15 +94,16 @@ function renderSheet() {
   const M = model(S.shift); const { E, items, byItem, extras, depts, slots, filled, claims } = M;
   const sh = shiftOf(S.shift); const pct = slots ? Math.round(filled / slots * 100) : 0;
   let h = '';
-  h += `<section class="hero"><div class="row between"><span class="eyebrow">Thanksgiving · all departments</span>${canManage() ? '<button class="primary" data-act="go-admin">Admin: see all sign-ups</button>' : ''}</div><h1>${esc(E.name || 'Team Thanksgiving Potluck')}</h1>`;
-  const facts = []; if (E.date) facts.push(`<span><b>${esc(fmtDate(E.date))}</b>, all three shifts</span>`); if (E.place) facts.push(`<span>at <b>${esc(E.place)}</b></span>`); if (E.host) facts.push(`<span>organized by <b>${esc(E.host)}</b></span>`);
+  h += `<section class="hero"><div class="row between"><span class="eyebrow">Thanksgiving · ${MULTI ? 'all departments' : esc(SHIFTS[0].label) + ' shift'}</span>${canManage() ? '<button class="primary" data-act="go-admin">Admin: see all sign-ups</button>' : ''}</div><h1>${esc(E.name || 'Team Thanksgiving Potluck')}</h1>`;
+  const facts = []; if (E.date) facts.push(`<span><b>${esc(fmtDate(E.date))}</b>, ${MULTI ? 'all three shifts' : esc(SHIFTS[0].label) + ' shift'}</span>`); if (E.place) facts.push(`<span>at <b>${esc(E.place)}</b></span>`); if (E.host) facts.push(`<span>organized by <b>${esc(E.host)}</b></span>`);
   if (facts.length) h += `<div class="facts">${facts.join('')}</div>`;
   if (E.notes) h += `<div class="note">${esc(E.notes)}</div>`;
-  h += `<p class="muted" style="margin:0">Each shift has its own spread. Pick your shift, then tap <b>I'll bring one</b> on a dish that still has open spots.</p>`;
+  h += MULTI ? `<p class="muted" style="margin:0">Each shift has its own spread. Pick your shift, then tap <b>I'll bring one</b> on a dish that still has open spots.</p>`
+    : `<p class="muted" style="margin:0">This one's for the night crew. Tap <b>I'll bring one</b> on a dish that still has open spots, or add your own.</p>`;
   h += `</section>`;
   if (S.offline) h += `<div class="offline">Can't reach the server right now. The sheet will update when the connection comes back.</div>`;
 
-  h += `<section class="shifts" role="tablist" aria-label="Shift">${SHIFTS.map(s => { const m = model(s.id); return `<button class="shift sh-${s.id}" role="tab" aria-selected="${S.shift === s.id}" data-act="shift" data-s="${s.id}"><span class="sname">${s.label}</span><span class="scount">${m.claims.length} signed up · ${m.slots ? Math.round(m.filled / m.slots * 100) : 0}%</span></button>`; }).join('')}</section>`;
+  if (MULTI) h += `<section class="shifts" role="tablist" aria-label="Shift">${SHIFTS.map(s => { const m = model(s.id); return `<button class="shift sh-${s.id}" role="tab" aria-selected="${S.shift === s.id}" data-act="shift" data-s="${s.id}"><span class="sname">${s.label}</span><span class="scount">${m.claims.length} signed up · ${m.slots ? Math.round(m.filled / m.slots * 100) : 0}%</span></button>`; }).join('')}</section>`;
 
   const left = CATS.map(c => ({ c, n: items.filter(i => i.cat === c.id).reduce((a, i) => a + Math.max(0, i.qty - byItem[i.id].length), 0) })).filter(x => x.n);
   h += `<section class="panel sh-${sh.id}" aria-label="${sh.label} shift progress">
@@ -179,22 +181,25 @@ function renderAdmin() {
   h += `<section class="panel"><div class="stats">
     <div class="stat"><span class="big">${S.claims.length}</span><span>dishes signed up</span></div>
     <div class="stat"><span class="big">${people}</span><span>people</span></div>
-    ${SHIFTS.map(s => { const m = model(s.id); return `<div class="stat sh-${s.id}"><span class="big" style="color:var(--sc)">${m.claims.length}</span><span>${s.label} · ${m.filled}/${m.slots} covered</span></div>`; }).join('')}
+    ${MULTI ? SHIFTS.map(s => { const m = model(s.id); return `<div class="stat sh-${s.id}"><span class="big" style="color:var(--sc)">${m.claims.length}</span><span>${s.label} · ${m.filled}/${m.slots} covered</span></div>`; }).join('')
+      : (() => { const m = model(SHIFTS[0].id); return `<div class="stat"><span class="big">${m.filled}/${m.slots}</span><span>preset dishes covered</span></div><div class="stat"><span class="big">${m.slots ? Math.round(m.filled / m.slots * 100) : 0}%</span><span>of the list filled</span></div>`; })()}
   </div></section>`;
-  h += `<section class="panel"><span class="eyebrow">Still needed, by shift</span><div class="gaps">${SHIFTS.map(s => { const m = model(s.id); const open = m.items.map(i => ({ i, n: i.qty - m.byItem[i.id].length })).filter(x => x.n > 0).sort((a, b) => b.n - a.n);
+  if (!MULTI) { const m = model(SHIFTS[0].id); const open = m.items.map(i => ({ i, n: i.qty - m.byItem[i.id].length })).filter(x => x.n > 0).sort((a, b) => b.n - a.n);
+    h += `<section class="panel"><span class="eyebrow">Still needed</span>${open.length ? `<div class="gaps gap"><ul style="grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px 24px">${open.map(x => `<li><span>${esc(x.i.label)}</span><span>${x.n} more</span></li>`).join('')}</ul></div>` : '<span class="chip done" style="align-self:flex-start">Everything on the list is covered</span>'}</section>`;
+  } else h += `<section class="panel"><span class="eyebrow">Still needed, by shift</span><div class="gaps">${SHIFTS.map(s => { const m = model(s.id); const open = m.items.map(i => ({ i, n: i.qty - m.byItem[i.id].length })).filter(x => x.n > 0).sort((a, b) => b.n - a.n);
     return `<div class="gap sh-${s.id}"><h3>${s.label}</h3>${open.length ? `<ul>${open.slice(0, 8).map(x => `<li><span>${esc(x.i.label)}</span><span>${x.n} more</span></li>`).join('')}</ul>${open.length > 8 ? `<span class="help">+ ${open.length - 8} more dishes</span>` : ''}` : '<span class="chip done" style="align-self:flex-start">All covered</span>'}</div>`; }).join('')}</div></section>`;
   h += `<section class="adminbar"><div class="filters">
     <input class="search" id="a-q" type="search" placeholder="Search name, dish, department" value="${esc(A.q)}" aria-label="Search sign-ups">
-    <select id="a-shift" aria-label="Shift"><option value="">All shifts</option>${SHIFTS.map(s => `<option value="${s.id}" ${A.shift === s.id ? 'selected' : ''}>${s.label}</option>`).join('')}</select>
+    ${MULTI ? `<select id="a-shift" aria-label="Shift"><option value="">All shifts</option>${SHIFTS.map(s => `<option value="${s.id}" ${A.shift === s.id ? 'selected' : ''}>${s.label}</option>`).join('')}</select>` : ''}
     <select id="a-dept" aria-label="Department"><option value="">All departments</option>${deptSet.map(d => `<option ${A.dept === d ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select>
     <select id="a-cat" aria-label="Category"><option value="">All categories</option>${CATS.map(c => `<option value="${c.id}" ${A.cat === c.id ? 'selected' : ''}>${c.label}</option>`).join('')}</select>
   </div><div class="row between"><span class="count">Showing ${rows.length} of ${S.claims.length}</span><div class="row"><button data-act="copy-roster">Copy list</button><a class="primary" href="/api/admin/export.csv" style="font:600 .92rem/1 var(--f-body);border-radius:999px;padding:10px 16px;text-decoration:none;background:var(--accent);color:var(--accent-ink)">Download spreadsheet (CSV)</a></div></div></section>`;
-  if (!S.claims.length) return h + `<section class="empty"><b>No sign-ups yet</b><span class="muted">When people claim a dish on the sign-up sheet, they show up here with their shift, department and what they're bringing.</span></section>`;
+  if (!S.claims.length) return h + `<section class="empty"><b>No sign-ups yet</b><span class="muted">When people claim a dish on the sign-up sheet, they show up here with their department and what they're bringing.</span></section>`;
   const col = (k, l) => `<th scope="col"><button data-act="sort" data-k="${k}">${l}${A.sort === k ? (A.dir === 'asc' ? ' ↑' : ' ↓') : ''}</button></th>`;
-  h += `<div class="tablewrap"><table><thead><tr>${col('name', 'Name')}${col('dept', 'Department')}${col('shift', 'Shift')}${col('dish', 'Bringing')}${col('cat', 'Category')}<th scope="col">Notes</th>${col('createdAt', 'Signed up')}<th scope="col"><span style="position:absolute;left:-9999px">Actions</span></th></tr></thead><tbody>`;
+  h += `<div class="tablewrap"><table><thead><tr>${col('name', 'Name')}${col('dept', 'Department')}${MULTI ? col('shift', 'Shift') : ''}${col('dish', 'Bringing')}${col('cat', 'Category')}<th scope="col">Notes</th>${col('createdAt', 'Signed up')}<th scope="col"><span style="position:absolute;left:-9999px">Actions</span></th></tr></thead><tbody>`;
   rows.forEach(r => {
     const notes = [r.detail ? esc(r.detail) : '', r.serves ? `serves ${esc(r.serves)}` : '', (r.tags || []).map(t => `<span class="tag ${t === 'Has nuts' || t === 'Spicy' ? 'warn' : ''}">${esc(t)}</span>`).join(' '), r.recipe ? `<button class="rbtn" data-act="recipe" data-id="${r.id}">Recipe / deal</button>` : ''].filter(Boolean).join(' · ');
-    h += `<tr><td><b>${esc(r.name)}</b></td><td>${esc(r.dept || '–')}</td><td>${spill(r.shift)}</td><td>${esc(r.dish)}${r.write ? ' <span class="sub">(write-in)</span>' : ''}</td><td>${esc(r.cat)}</td><td>${notes || '<span class="sub">–</span>'}</td><td class="num">${esc(fmtStamp(r.createdAt))}</td>
+    h += `<tr><td><b>${esc(r.name)}</b></td><td>${esc(r.dept || '–')}</td>${MULTI ? `<td>${spill(r.shift)}</td>` : ''}<td>${esc(r.dish)}${r.write ? ' <span class="sub">(write-in)</span>' : ''}</td><td>${esc(r.cat)}</td><td>${notes || '<span class="sub">–</span>'}</td><td class="num">${esc(fmtStamp(r.createdAt))}</td>
       <td style="white-space:nowrap">${S.confirmId === r.id ? `<button class="ghost danger" data-act="do-del" data-id="${r.id}">Confirm remove</button><button class="ghost" data-act="cancel-del">Keep</button>` : `<button class="ghost" data-act="edit-claim" data-id="${r.id}">Edit</button><button class="ghost" data-act="ask-del" data-id="${r.id}">Remove</button>`}</td></tr>`;
   });
   return h + `</tbody></table></div>`;
@@ -226,6 +231,7 @@ function openClaim(ctx) {
   $('c-tags').innerHTML = TAGS.map((t, i) => `<label for="c-tag-${i}"><input type="checkbox" id="c-tag-${i}" value="${esc(t)}">${esc(t)}</label>`).join('');
   const sh = edit ? edit.shift : S.shift;
   $('c-shift').innerHTML = SHIFTS.map(s => `<label class="sh-${s.id}" for="c-sh-${s.id}"><input type="radio" name="c-shift" id="c-sh-${s.id}" value="${s.id}" ${sh === s.id ? 'checked' : ''}>${s.label}</label>`).join('');
+  $('c-shift').closest('.field').hidden = !MULTI;
   $('fixedWrap').hidden = !fixed; $('dishWrap').hidden = fixed; $('catWrap').hidden = fixed;
   $('claimTitle').textContent = fixed ? item.label : '';
   $('claimEyebrow').textContent = edit ? 'Edit sign-up' : "I'll bring";

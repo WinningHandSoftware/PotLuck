@@ -4,7 +4,7 @@ Team Thanksgiving potluck sign-up sheet.
 
 A sign-up sheet for a company-wide potluck. It has:
 
-- **Three shifts.** Morning, Swing and Graveyard each have their own spread. Graveyard is the default.
+- **Graveyard (night) shift only for now.** To bring back Morning and Swing, add them to `SHIFTS` in `public/shared.js`; the shift tabs and filters come back automatically.
 - **A preset Thanksgiving list.** Each dish has a count per shift ("Mac & cheese 2/5"). A dish gets crossed off when it fills.
 - **Write-ins.** People can add a dish that isn't on the list.
 - **Sign-up details.** Each sign-up has a name and department, plus optional specifics, servings, dietary tags and a **recipe, link or deal** that others can open.

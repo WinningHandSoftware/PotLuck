@@ -193,7 +193,7 @@ button{font:700 1rem/1 Figtree,system-ui,sans-serif;border-radius:999px;padding:
 ${error ? `<div class="err" role="alert">${error}</div>` : ''}
 <button type="submit">Sign in</button>
 </form>
-<div class="shifts" aria-hidden="true"><span>Morning</span><span>Swing</span><span>Graveyard</span></div>
+<div class="shifts" aria-hidden="true">${SHIFTS.map(x => `<span>${x.label} shift</span>`).join('')}</div>
 </main></body></html>`;
 
 app.get('/login', (req, res) => {
@@ -396,13 +396,13 @@ h1{font:400 clamp(34px,7vw,56px)/1.02 "Bagel Fat One","Arial Rounded MT Bold",sa
 @media print{.bar{display:none}.page{padding:0}}
 </style></head><body><div class="page">
 <div class="cloth"></div>
-<span class="eyebrow">Thanksgiving · all departments · all shifts</span>
+<span class="eyebrow">Thanksgiving · ${SHIFTS.length > 1 ? 'all departments · all shifts' : htmlEsc(SHIFTS[0].label) + ' shift'}</span>
 <h1>${htmlEsc(ev.name || 'Team Thanksgiving Potluck')}</h1>
 ${when || ev.place ? `<div class="facts">${htmlEsc(when)}${ev.place ? `<span>${htmlEsc(ev.place)}</span>` : ''}</div>` : ''}
 <div class="qr" role="img" aria-label="QR code for the potluck sign-up sheet">${svg}</div>
 <div class="scan">Scan to sign up</div>
-<p class="how" style="margin:0">Pick your shift, claim a dish that still has open spots, or add your own. Share your recipe or a deal you found while you're at it.</p>
-<div class="shifts"><b style="color:#B97B1E">Morning</b><b style="color:#C0583A">Swing</b><b style="color:#3E4C8A">Graveyard</b></div>
+<p class="how" style="margin:0">${SHIFTS.length > 1 ? 'Pick your shift, claim' : 'Night crew: claim'} a dish that still has open spots, or add your own. Share your recipe or a deal you found while you're at it.</p>
+<div class="shifts">${SHIFTS.map(x => `<b style="color:${({ morning: '#B97B1E', swing: '#C0583A', graveyard: '#3E4C8A' })[x.id] || '#2F6B4F'}">${htmlEsc(x.label)}${SHIFTS.length > 1 ? '' : ' shift'}</b>`).join('')}</div>
 <div class="url">${htmlEsc(signupUrl().replace(/^https?:\/\//, '').replace(/\/$/, ''))}</div>
 ${ev.host ? `<div class="eyebrow">Questions? Ask ${htmlEsc(ev.host)}</div>` : ''}
 <div class="bar"><button onclick="window.print()">Print flyer</button><a href="/admin">Back to admin</a></div>
